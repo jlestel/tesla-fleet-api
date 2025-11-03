@@ -158,9 +158,9 @@ publicKeyServer:
     tls:
       enabled: true
       # Use certResolver for automatic HTTPS with Let's Encrypt
-      certResolver: letsencrypt
+      #certResolver: letsencrypt
       # Or use a specific secret for TLS
-      # secretName: tesla-vehicle-command-tls
+      secretName: app-tls
 
 nodeSelector: {}
 
