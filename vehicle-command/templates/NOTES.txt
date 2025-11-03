@@ -11,12 +11,23 @@ To complete the onboarding process:
    kubectl wait --for=condition=complete --timeout=300s job/{{ include "vehicle-command.fullname" . }}-generate-secrets -n {{ .Release.Namespace }}
 
 2. Retrieve your Tesla public key:
-   kubectl logs -n {{ .Release.Namespace }} job/{{ include "vehicle-command.fullname" . }}-generate-secrets
+
+   Method 1 - Via HTTPS endpoint (recommended):
+{{- if .Values.publicKeyServer.enabled }}
+   curl https://{{ .Values.publicKeyServer.ingress.host }}/.well-known/appspecific/com.tesla.3p.public-key.pem
+{{- end }}
+
+   Method 2 - Via kubectl logs:
+   kubectl logs -n {{ .Release.Namespace }} job/{{ include "vehicle-command.fullname" . }}-generate-secrets -c create-secret
 
 3. Register this public key with Tesla Fleet API:
    - Visit: https://developer.tesla.com/
    - Navigate to your application settings
+{{- if .Values.publicKeyServer.enabled }}
+   - Provide the public key URL: https://{{ .Values.publicKeyServer.ingress.host }}/.well-known/appspecific/com.tesla.3p.public-key.pem
+{{- else }}
    - Add the public key from step 2
+{{- end }}
 
 4. Wait for Tesla to approve your key (approval may take some time)
 

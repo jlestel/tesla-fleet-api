@@ -1,0 +1,111 @@
+{{- if .Values.publicKeyServer.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "vehicle-command.fullname" . }}-nginx-config
+  labels:
+    {{- include "vehicle-command.labels" . | nindent 4 }}
+data:
+  nginx.conf: |
+    events {
+      worker_connections 1024;
+    }
+
+    http {
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      server {
+        listen 8080;
+        server_name _;
+
+        # Serve the public key on the specific Tesla path
+        location = /.well-known/appspecific/com.tesla.3p.public-key.pem {
+          root /usr/share/nginx/html;
+          try_files /com.tesla.3p.public-key.pem =404;
+          add_header Content-Type application/x-pem-file;
+          add_header Cache-Control "public, max-age=3600";
+        }
+
+        # Return 404 for everything else
+        location / {
+          return 404;
+        }
+      }
+    }
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "vehicle-command.fullname" . }}-public-key-server
+  labels:
+    {{- include "vehicle-command.labels" . | nindent 4 }}
+    app.kubernetes.io/component: public-key-server
+spec:
+  replicas: {{ .Values.publicKeyServer.replicas }}
+  selector:
+    matchLabels:
+      {{- include "vehicle-command.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: public-key-server
+  template:
+    metadata:
+      labels:
+        {{- include "vehicle-command.labels" . | nindent 8 }}
+        app.kubernetes.io/component: public-key-server
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:alpine
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+        - name: public-key
+          mountPath: /usr/share/nginx/html
+        resources:
+          {{- toYaml .Values.publicKeyServer.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /.well-known/appspecific/com.tesla.3p.public-key.pem
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /.well-known/appspecific/com.tesla.3p.public-key.pem
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 5
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: {{ include "vehicle-command.fullname" . }}-nginx-config
+      - name: public-key
+        configMap:
+          name: vehicle-command-public-key
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "vehicle-command.fullname" . }}-public-key-server
+  labels:
+    {{- include "vehicle-command.labels" . | nindent 4 }}
+    app.kubernetes.io/component: public-key-server
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "vehicle-command.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: public-key-server
+{{- end }}

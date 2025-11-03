@@ -140,6 +140,28 @@ autoGenerateSecrets:
   # Tesla key name (used for tesla-keygen)
   teslaKeyName: vehicle-command
 
+# Public key server to expose Tesla public key via HTTP
+# This is required for Tesla Fleet API onboarding
+publicKeyServer:
+  enabled: true
+  replicas: 1
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 50m
+      memory: 32Mi
+  ingress:
+    enabled: true
+    host: tesla-vehicle-command.k3mate.com
+    tls:
+      enabled: true
+      # Use certResolver for automatic HTTPS with Let's Encrypt
+      certResolver: letsencrypt
+      # Or use a specific secret for TLS
+      # secretName: tesla-vehicle-command-tls
+
 nodeSelector: {}
 
 tolerations: []

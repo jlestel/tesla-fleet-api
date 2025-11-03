@@ -1,0 +1,34 @@
+{{- if and .Values.publicKeyServer.enabled .Values.publicKeyServer.ingress.enabled }}
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "vehicle-command.fullname" . }}-public-key
+  labels:
+    {{- include "vehicle-command.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    # Serve the Tesla public key on the well-known path
+    - match: Host(`{{ .Values.publicKeyServer.ingress.host }}`) && PathPrefix(`/.well-known/appspecific/`)
+      kind: Rule
+      services:
+        - name: {{ include "vehicle-command.fullname" . }}-public-key-server
+          port: 80
+    # Return 404 for everything else on this host
+    - match: Host(`{{ .Values.publicKeyServer.ingress.host }}`)
+      kind: Rule
+      services:
+        - name: {{ include "vehicle-command.fullname" . }}-public-key-server
+          port: 80
+  {{- if .Values.publicKeyServer.ingress.tls.enabled }}
+  tls:
+    {{- if .Values.publicKeyServer.ingress.tls.certResolver }}
+    certResolver: {{ .Values.publicKeyServer.ingress.tls.certResolver }}
+    {{- end }}
+    {{- if .Values.publicKeyServer.ingress.tls.secretName }}
+    secretName: {{ .Values.publicKeyServer.ingress.tls.secretName }}
+    {{- end }}
+  {{- end }}
+{{- end }}

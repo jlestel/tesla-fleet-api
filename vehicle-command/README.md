@@ -74,6 +74,12 @@ helm install vehicle-command ./vehicle-command -f custom-values.yaml
 | `autoGenerateSecrets.tlsCN` | Common Name for TLS certificate | `vehicle-command.local` |
 | `autoGenerateSecrets.teslaKeyName` | Tesla key name for tesla-keygen | `vehicle-command` |
 | `extraSecrets` | Manual secrets configuration | `{}` |
+| `publicKeyServer.enabled` | Enable public key HTTP server | `true` |
+| `publicKeyServer.replicas` | Number of replicas for public key server | `1` |
+| `publicKeyServer.ingress.enabled` | Enable ingress for public key server | `true` |
+| `publicKeyServer.ingress.host` | Hostname for public key server | `tesla-vehicle-command.k3mate.com` |
+| `publicKeyServer.ingress.tls.enabled` | Enable TLS for public key ingress | `true` |
+| `publicKeyServer.ingress.tls.certResolver` | Traefik cert resolver name | `letsencrypt` |
 | `service.type` | Kubernetes service type | `ClusterIP` |
 | `service.port` | Service port | `4443` |
 | `ingress.enabled` | Enable ingress | `false` |
@@ -140,14 +146,22 @@ kubectl delete secret vehicle-command -n <namespace>
 After installing with auto-generated secrets:
 
 1. **Get your public key:**
+
+   Method 1 - Via HTTPS endpoint (recommended):
    ```bash
-   kubectl logs -n <namespace> job/vehicle-command-generate-secrets | grep -A 50 "public key"
+   curl https://tesla-vehicle-command.k3mate.com/.well-known/appspecific/com.tesla.3p.public-key.pem
+   ```
+
+   Method 2 - Via kubectl logs:
+   ```bash
+   kubectl logs -n <namespace> job/vehicle-command-generate-secrets -c create-secret | grep -A 50 "public key"
    ```
 
 2. **Register with Tesla:**
    - Go to https://developer.tesla.com/
    - Navigate to your application
    - Add the public key in the Fleet API settings
+   - You can provide the direct URL to your public key: `https://your-domain/.well-known/appspecific/com.tesla.3p.public-key.pem`
 
 3. **Wait for approval:**
    - Tesla will review and approve your key
@@ -158,6 +172,16 @@ After installing with auto-generated secrets:
    kubectl port-forward -n <namespace> svc/vehicle-command 4443:4443
    curl https://localhost:4443/api/1/vehicles
    ```
+
+### Public Key Server
+
+The chart automatically deploys a lightweight nginx server that exposes your Tesla public key on the path required by Tesla Fleet API:
+
+- **URL:** `https://your-domain/.well-known/appspecific/com.tesla.3p.public-key.pem`
+- **Behavior:** Returns 404 for all other paths (security)
+- **Configuration:** See `publicKeyServer` section in values.yaml
+
+This server is deployed separately from the vehicle-command proxy and only serves the public key file.
 
 ## Troubleshooting
 
