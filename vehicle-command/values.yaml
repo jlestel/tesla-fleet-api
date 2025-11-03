@@ -8,7 +8,7 @@ image:
   repository: tesla/vehicle-command
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+  tag: 0.3.0
 
 imagePullSecrets: []
 nameOverride: ""
@@ -41,7 +41,7 @@ securityContext: {}
 
 service:
   type: ClusterIP
-  port: 80
+  port: 4443
 
 ingress:
   enabled: false
@@ -79,21 +79,35 @@ autoscaling:
   # targetMemoryUtilizationPercentage: 80
 
 # Additional volumes on the output Deployment definition.
-volumes: []
-# - name: foo
-#   secret:
-#     secretName: mysecret
-#     optional: false
+volumes:
+  - name: vehicle-command
+    secret:
+      secretName: vehicle-command
 
-# Additional volumeMounts on the output Deployment definition.
-volumeMounts: []
-# - name: foo
-#   mountPath: "/etc/foo"
-#   readOnly: true
+volumeMounts:
+  - mountPath: /mnt/tls.key
+    name: vehicle-command
+    subPath: tls.key
+  - mountPath: /mnt/cert.pem
+    name: vehicle-command
+    subPath: cert.pem
+  - mountPath: /mnt/private.pem
+    name: vehicle-command
+    subPath: private.pem
 
-envs: []
-# - name: foo
-#   value: "/etc/foo"
+envs:
+  - name: TESLA_VERBOSE
+    value: 'true'
+  - name: TESLA_HTTP_PROXY_TLS_CERT
+    value: /mnt/cert.pem
+  - name: TESLA_HTTP_PROXY_TLS_KEY
+    value: /mnt/tls.key
+  - name: TESLA_KEY_FILE
+    value: /mnt/private.pem
+  - name: TESLA_HTTP_PROXY_PORT
+    value: '4443'
+  - name: TESLA_HTTP_PROXY_HOST
+    value: 0.0.0.0
 
 # Extra secrets to be created and injected as environment variables
 # Each secret will be created with the specified data and mounted as envFrom in the deployment
@@ -111,6 +125,20 @@ extraSecrets: {}
 #      -----BEGIN PRIVATE KEY-----
 #      contenu ici
 #      -----END PRIVATE KEY-----
+
+# Auto-generate Tesla Fleet API secrets if not provided
+# When enabled, a pre-install job will generate TLS certificates and Tesla private key
+# using tesla-keygen if the vehicle-command secret doesn't exist
+autoGenerateSecrets:
+  enabled: true
+  image:
+    repository: tesla/vehicle-command
+    tag: 0.3.0
+    pullPolicy: IfNotPresent
+  # Common Name for the TLS certificate
+  tlsCN: vehicle-command.local
+  # Tesla key name (used for tesla-keygen)
+  teslaKeyName: vehicle-command
 
 nodeSelector: {}
 

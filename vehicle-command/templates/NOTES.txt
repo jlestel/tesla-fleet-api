@@ -1,4 +1,29 @@
-1. Get the application URL by running these commands:
+{{- if .Values.autoGenerateSecrets.enabled }}
+==============================================================================
+  Tesla Fleet API Onboarding Required
+==============================================================================
+
+Your Tesla Fleet API secrets have been automatically generated!
+
+To complete the onboarding process:
+
+1. Wait for the secret generation job to complete:
+   kubectl wait --for=condition=complete --timeout=300s job/{{ include "vehicle-command.fullname" . }}-generate-secrets -n {{ .Release.Namespace }}
+
+2. Retrieve your Tesla public key:
+   kubectl logs -n {{ .Release.Namespace }} job/{{ include "vehicle-command.fullname" . }}-generate-secrets
+
+3. Register this public key with Tesla Fleet API:
+   - Visit: https://developer.tesla.com/
+   - Navigate to your application settings
+   - Add the public key from step 2
+
+4. Wait for Tesla to approve your key (approval may take some time)
+
+==============================================================================
+{{- end }}
+
+Get the application URL by running these commands:
 {{- if .Values.ingress.enabled }}
 {{- range $host := .Values.ingress.hosts }}
   {{- range .paths }}
